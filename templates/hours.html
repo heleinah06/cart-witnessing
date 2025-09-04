@@ -19,33 +19,38 @@
             {% else %}
                 {% set classes = "bg-red-200 text-gray-500 cursor-not-allowed" %}
             {% endif %}
-            <div class="border rounded-lg p-3 text-center {{ classes }}"
+            <div class="border rounded-lg p-3 text-left {{ classes }}" data-slot="{{ slot }}"
                  onclick="selectSlot('{{ slot }}', {{ count }})">
-                {{ slot }}{% if count > 0 %} - {{ count }}/3 booked{% endif %}
+                <div class="flex justify-between items-start">
+                    <span class="font-semibold">{{ slot }}</span>
+                    <span class="text-sm">
+                        {% if count > 0 %}{{ count }}/3 booked{% else %}Available{% endif %}
+                    </span>
+                </div>
             </div>
         {% endfor %}
     </div>
 
-    <!-- Booking Form -->
-    <div id="bookingForm" class="hidden border p-4 rounded-lg">
+    <!-- Booking Form (hidden until a slot is selected) -->
+    <div id="bookingFormContainer" class="hidden border p-4 rounded-lg">
         <h3 class="text-center mb-2 text-[#0067a5]">
             Confirm Booking for <span id="selectedSlot"></span>
         </h3>
-        <form method="POST" action="/book">
+
+        <form id="booking-form">
             <input type="hidden" name="cart_id" value="{{ cart_id }}">
             <input type="hidden" name="date_str" value="{{ date }}">
-            <input type="hidden" name="time_slot" id="timeSlotInput">
+            <input type="hidden" name="time_slot" id="time_slot_input">
 
-            <label class="block mb-1">Select Your Name:</label>
-            <select id="nameSelect" name="name_id" required>
+            <label for="nameSelect" class="block mb-1">Select Your Name:</label>
+            <select id="nameSelect" name="name_id" required class="w-full border p-2 rounded">
                 <option value="">-- Type to search --</option>
-                {% for name in names %}
-                    <option value="{{ name.id }}">{{ name.full_name }}</option>
+                {% for n in names %}
+                <option value="{{ n.id }}">{{ n.full_name }}</option>
                 {% endfor %}
             </select>
 
-            <button type="submit"
-                    class="mt-3 w-full bg-[#0067a5] text-white px-4 py-2 rounded-lg hover:opacity-90">
+            <button type="submit" class="mt-3 w-full bg-[#0067a5] text-white px-4 py-2 rounded-lg hover:opacity-90">
                 Submit Booking
             </button>
         </form>
@@ -61,66 +66,126 @@
 
 </div>
 
-<!-- Tom Select Script -->
+<!-- Cancellation Code Modal -->
+<div id="cancelModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg shadow-lg text-center max-w-sm">
+        <h3 class="text-lg font-bold mb-3 text-[#0067a5]">Booking Successful 🎉</h3>
+        <p>Your cancellation code is:</p>
+        <p id="cancelCode" class="font-mono text-xl font-bold text-red-600 my-2"></p>
+        <p class="text-sm text-gray-600">Please save this code. You'll need it if you want to cancel.</p>
+        <button id="closeModalBtn" class="mt-4 bg-[#0067a5] text-white px-4 py-2 rounded-lg hover:opacity-90">
+            Close
+        </button>
+    </div>
+</div>
+
+<!-- Tom Select Script (optional nice search UX) -->
 <link href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
 
 <script>
+/* Called when user clicks a slot card.
+   It now ONLY reveals the booking form (does not auto-submit). */
 function selectSlot(slot, count) {
     if (count >= 3) {
         alert("This slot is already full. Please pick another one.");
         return;
     }
+    // show booking form
+    const container = document.getElementById("bookingFormContainer");
+    container.classList.remove("hidden");
 
-    const form = document.getElementById("bookingForm");
-    form.classList.remove("hidden");
+    // set selected slot text and hidden input
     document.getElementById("selectedSlot").textContent = slot;
-    document.getElementById("timeSlotInput").value = slot;
+    document.getElementById("time_slot_input").value = slot;
 
-    form.scrollIntoView({ behavior: "smooth" });
+    // focus the name select for convenience
+    const sel = document.getElementById("nameSelect");
+    sel.focus();
+
+    // scroll form into view on mobile
+    container.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
-// Drastic Tom Select configuration
-new TomSelect("#nameSelect", {
+/* Submit booking with fetch(); expect JSON { cancellation_code } */
+document.getElementById("booking-form").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    const form = e.target;
+    const fd = new FormData(form);
+
+    // basic client-side validation
+    if (!fd.get("time_slot")) {
+        alert("Please select a slot first.");
+        return;
+    }
+    if (!fd.get("name_id")) {
+        alert("Please select your name.");
+        return;
+    }
+
+    try {
+        const resp = await fetch("/book", {
+            method: "POST",
+            headers: { "Accept": "application/json" },
+            body: fd
+        });
+
+        if (!resp.ok) {
+            const text = await resp.text();
+            alert("Booking failed: " + (text || resp.statusText));
+            return;
+        }
+
+        const data = await resp.json();
+        const code = data.cancellation_code;
+        // show modal
+        document.getElementById("cancelCode").textContent = code;
+        document.getElementById("cancelModal").classList.remove("hidden");
+
+        // hide form until next selection
+        document.getElementById("bookingFormContainer").classList.add("hidden");
+
+    } catch (err) {
+        console.error(err);
+        alert("Unexpected error. See console for details.");
+    }
+});
+
+/* Close modal and reload to show updated bookings in page */
+document.getElementById("closeModalBtn").addEventListener("click", function () {
+    document.getElementById("cancelModal").classList.add("hidden");
+    // reload to refresh counts & names from server
+    location.reload();
+});
+
+/* TomSelect setup (keeps your type-to-search) */
+
+  new TomSelect("#nameSelect", {
     maxItems: 1,
     create: false,
     placeholder: "Type to search...",
-    searchField: "text",
-    preload: false,           // do not preload
-    dropdownParent: "body",   // prevent overlap
+    preload: false,
+    dropdownParent: "body",
     hideSelected: true,
-    onInitialize: function() {
-        // Remove all initial options from dropdown
-        this.clearOptions();
-
-        // Store static options internally
-        this.allOptions = {% raw %}[{% endraw %}
-            {% for name in names %}
-                {value: "{{ name.id }}", text: "{{ name.full_name }}"}{% if not loop.last %},{% endif %}
-            {% endfor %}
-        {% raw %}] {% endraw %};
-    },
-    load: function(query, callback) {
-        if (!query.length) return callback(); // show nothing if empty
-        const results = this.allOptions.filter(opt =>
-            opt.text.toLowerCase().includes(query.toLowerCase())
-        );
-        callback(results);
+    openOnFocus: false,   // ⬅️ prevents dropdown on focus
+    shouldLoad: function(query) {
+      return query.length > 0; // only show when typing
     }
-});
+  });
+
 
 </script>
 
 <style>
-/* Prevent dropdown overlapping the Submit button */
 .ts-dropdown {
     max-height: 200px;
     overflow-y: auto;
     z-index: 9999;
 }
 </style>
-
 {% endblock %}
+
+
 
 
 

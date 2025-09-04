@@ -1,18 +1,18 @@
 from fastapi import FastAPI, Request, Form, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from fastapi.staticfiles import StaticFiles
+from sqlalchemy.orm import Session
 import calendar
 from datetime import date, datetime
 
-# Import DB session and models
-import models
+import random, string
 
+import models
 from database import get_db
-from sqlalchemy.orm import Session
-from models import Booking, Name  # We'll define these in models.py later
-from fastapi.staticfiles import StaticFiles
+from models import Booking, Name
 
 app = FastAPI()
 
@@ -25,10 +25,14 @@ app.add_middleware(
 
 templates = Jinja2Templates(directory="templates")
 
+
+# -------------------- TEST ROUTE --------------------
 @app.get("/test-bookings")
 def test_bookings(db: Session = Depends(get_db)):
-    return db.query(models.Booking).all()
+    return db.query(Booking).all()
 
+
+# -------------------- LOGIN --------------------
 @app.get("/", response_class=HTMLResponse)
 async def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
@@ -45,6 +49,7 @@ async def login(request: Request, congregation_number: str = Form(...)):
     )
 
 
+# -------------------- LOCATIONS --------------------
 @app.get("/locations", response_class=HTMLResponse)
 async def locations(request: Request):
     if not request.session.get("logged_in"):
@@ -52,6 +57,7 @@ async def locations(request: Request):
     return templates.TemplateResponse("locations.html", {"request": request})
 
 
+# -------------------- AUTH MIDDLEWARE --------------------
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         # Paths that don't require login
@@ -69,6 +75,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
 app.add_middleware(AuthMiddleware)
 
 
+# -------------------- CALENDAR VIEW --------------------
 @app.get("/calendar/{cart_id}", response_class=HTMLResponse)
 async def show_calendar(
     request: Request, cart_id: int, month: int = None, year: int = None
@@ -105,7 +112,7 @@ async def show_calendar(
     )
 
 
-# ✅ NEW: Hours view route
+# -------------------- HOURLY VIEW --------------------
 @app.get("/hours/{cart_id}/{year}/{month}/{day}", response_class=HTMLResponse)
 async def show_hours(
     request: Request,
@@ -134,8 +141,7 @@ async def show_hours(
         "6:00 PM - 7:00 PM",
         "7:00 PM - 8:00 PM",
         "8:00 PM - 9:00 PM",
-        ]
-
+    ]
 
     # Count bookings per slot
     slot_status = {slot: 0 for slot in time_slots}
@@ -158,9 +164,9 @@ async def show_hours(
     )
 
 
-# ✅ NEW: Handle booking submission
+# -------------------- BOOKING --------------------
 @app.post("/book")
-async def create_booking(
+async def book(
     request: Request,
     cart_id: int = Form(...),
     date_str: str = Form(...),
@@ -168,32 +174,25 @@ async def create_booking(
     name_id: int = Form(...),
     db: Session = Depends(get_db),
 ):
-    if not request.session.get("logged_in"):
-        return RedirectResponse(url="/", status_code=303)
+    # Generate cancellation code
+    cancellation_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=3))
 
-    booking_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-
-    # Check if slot is full (max 2)
-    existing_count = (
-        db.query(Booking)
-        .filter(Booking.cart_id == cart_id, Booking.booking_date == booking_date, Booking.time_slot == time_slot)
-        .count()
+    # Store booking in DB (SQLAlchemy instead of raw psycopg2)
+    new_booking = Booking(
+        cart_id=cart_id,
+        booking_date=datetime.strptime(date_str, "%Y-%m-%d").date(),
+        time_slot=time_slot,
+        name_id=name_id,
+        cancellation_code=cancellation_code,
     )
-    if existing_count >= 3:
-        return templates.TemplateResponse(
-            "error.html",
-            {"request": request, "message": "This slot is already full. Please pick another one."},
-        )
-
-    # Save booking
-    new_booking = Booking(cart_id=cart_id, booking_date=booking_date
-    , time_slot=time_slot, name_id=name_id)
     db.add(new_booking)
     db.commit()
+    db.refresh(new_booking)
 
-    return RedirectResponse(
-        url=f"/hours/{cart_id}/{booking_date.year}/{booking_date.month}/{booking_date.day}",
-        status_code=303,
-    )
+    # Return JSON for HTMX popup
+    return JSONResponse({"cancellation_code": cancellation_code})
+
+
+
 
 
