@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-md mx-auto px-2">
+    <!-- Cart Location Title -->
+    <h1 class="text-2xl font-bold text-center text-[#0067a5] mb-2">
+        {{ cart_location }}
+    </h1>
+
+    <!-- Month/Year Header with Prev/Next -->
+    <div class="flex justify-between items-center mb-4">
+        <button onclick="changeMonth(-1)" class="text-[#0067a5] font-bold text-xl">◀</button>
+        <h2 class="text-xl font-semibold text-[#0067a5]" id="monthYear"></h2>
+        <button onclick="changeMonth(1)" class="text-[#0067a5] font-bold text-xl">▶</button>
+    </div>
+
+    <!-- Calendar Grid -->
+    <div id="calendar" class="grid grid-cols-7 gap-1 text-center text-sm font-medium"></div>
+
+    <!-- Back Button -->
+    <div class="flex justify-center mt-6">
+        <a href="/locations"
+           class="bg-[#0067a5] text-white px-4 py-2 rounded-lg shadow hover:opacity-90">
+           Back to Cart Locations
+        </a>
+    </div>
+</div>
+
+<script>
+    const calendarEl = document.getElementById('calendar');
+    const monthYearEl = document.getElementById('monthYear');
+
+    let currentDate = new Date();
+
+    function renderCalendar() {
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+
+        monthYearEl.textContent = currentDate.toLocaleDateString('en-US', {
+            month: 'long',
+            year: 'numeric'
+        });
+
+        // Start of month
+        const firstDay = new Date(year, month, 1).getDay();
+        const lastDate = new Date(year, month + 1, 0).getDate();
+
+        calendarEl.innerHTML = "";
+
+        // Weekday headers
+        const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        for (let d of days) {
+            calendarEl.innerHTML += `<div class="font-bold">${d}</div>`;
+        }
+
+        // Empty cells before month starts
+        for (let i = 0; i < firstDay; i++) {
+            calendarEl.innerHTML += `<div></div>`;
+        }
+
+        // Fill dates
+        for (let date = 1; date <= lastDate; date++) {
+            const day = new Date(year, month, date).getDay();
+
+            let classes = "border flex items-center justify-center aspect-square";
+            let clickable = "";
+
+            // Only Wed (3), Thu (4), Fri (5) are selectable
+            if (day === 3 || day === 4 || day === 5) {
+                classes += " bg-green-200 hover:bg-green-300 cursor-pointer";
+                clickable = `onclick="selectDate(${year},${month},${date})"`;
+            } else {
+                classes += " bg-gray-100 text-gray-400";
+            }
+
+            calendarEl.innerHTML += `<div class="${classes}" ${clickable}>${date}</div>`;
+        }
+    }
+
+    function changeMonth(offset) {
+        currentDate.setMonth(currentDate.getMonth() + offset);
+        renderCalendar();
+    }
+
+    function selectDate(year, month, date) {
+        const yyyy = year;
+        const mm = String(month + 1).padStart(2, '0'); // JS months are 0-based
+        const dd = String(date).padStart(2, '0');
+        const cartId = "{{ cart_id }}";
+
+        window.location.href = `/hours/${cartId}/${yyyy}/${mm}/${dd}`;
+    }
+
+
+
+    renderCalendar();
+</script>
+{% endblock %}
+
+
+
+
+

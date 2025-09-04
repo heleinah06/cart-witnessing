@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Top Fixed Banner -->
+<header class="fixed top-0 left-0 w-full z-50 shadow-md">
+    <!-- Congregation Banner -->
+    <div class="bg-white text-black py-4">
+        <h1 class="text-3xl font-bold text-center text-black">Cubao Congregation</h1>
+    </div>
+
+    <!-- Navigation Bar -->
+    <nav class="bg-[#0067a5] text-white">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="flex justify-between items-center py-3">
+                <!-- Mobile Menu Button -->
+                <div class="md:hidden">
+                    <button id="menu-btn" class="focus:outline-none">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M4 6h16M4 12h16m-7 6h7"></path>
+                        </svg>
+                    </button>
+                </div>
+                <!-- Desktop Menu -->
+                <ul class="hidden md:flex space-x-8 text-lg font-medium mx-auto">
+                    <li><a href="#" class="hover:underline">Announcements</a></li>
+                    <li><a href="#" class="hover:underline">Experiences</a></li>
+                    <li><a href="#" class="hover:underline">About</a></li>
+                    <li><a href="#" class="hover:underline">Login</a></li>
+                </ul>
+            </div>
+        </div>
+        <!-- Mobile Menu Items -->
+        <div id="mobile-menu" class="hidden md:hidden bg-[#0067a5]">
+            <ul class="flex flex-col items-center space-y-4 py-4 text-lg font-medium">
+                <li><a href="#" class="hover:underline">Announcements</a></li>
+                <li><a href="#" class="hover:underline">Experiences</a></li>
+                <li><a href="#" class="hover:underline">About</a></li>
+                <li><a href="#" class="hover:underline">Login</a></li>
+            </ul>
+        </div>
+    </nav>
+</header>
+
+<!-- Push Content Down to Avoid Overlap -->
+<div class="pt-32"></div>
+
+<!-- Section Heading -->
+<div class="text-center my-6">
+    <h2 class="text-2xl font-semibold text-gray-800">Local Cart Witnessing</h2>
+</div>
+
+<!-- Location List -->
+<div class="bg-white rounded-lg shadow-md divide-y divide-gray-200 animate-fadeIn">
+    <a href="/calendar/1" class="block p-5 hover:bg-blue-50 transition-transform duration-200 hover:translate-x-1">
+        <div class="flex items-center justify-between">
+            <span class="text-lg font-medium text-gray-800">Cart 1 – 10th Ave</span>
+            <span class="text-sm text-gray-500">Available</span>
+        </div>
+    </a>
+    <a href="/calendar/2" class="block p-5 hover:bg-blue-50 transition-transform duration-200 hover:translate-x-1">
+        <div class="flex items-center justify-between">
+            <span class="text-lg font-medium text-gray-800">Cart 2 – 12th Ave</span>
+            <span class="text-sm text-gray-500">Available</span>
+        </div>
+    </a>
+    <a href="/calendar/3" class="block p-5 hover:bg-blue-50 transition-transform duration-200 hover:translate-x-1">
+        <div class="flex items-center justify-between">
+            <span class="text-lg font-medium text-gray-800">Cart 3 – Greenhills Tunnel</span>
+            <span class="text-sm text-gray-500">Available</span>
+        </div>
+    </a>
+</div>
+
+<style>
+/* Simple fade-in animation */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeIn {
+    animation: fadeIn 0.8s ease-out;
+}
+</style>
+
+<script>
+document.getElementById('menu-btn').addEventListener('click', function () {
+    document.getElementById('mobile-menu').classList.toggle('hidden');
+});
+</script>
+{% endblock %}
+
+
+
+
+
+
+
+
+
+
+

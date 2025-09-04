@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="max-w-md mx-auto px-2">
+
+    <!-- Cart Location & Date -->
+    <h1 class="text-2xl font-bold text-center text-[#0067a5] mb-2">
+        Cart {{ cart_id }}
+    </h1>
+    <h2 class="text-lg text-center mb-4 text-[#0067a5]">{{ date }}</h2>
+
+    <!-- Hourly Slots -->
+    <div class="grid grid-cols-1 gap-2 mb-4">
+        {% for slot in time_slots %}
+            {% set count = slot_status[slot]|default(0) %}
+            {% if count == 0 %}
+                {% set classes = "bg-green-200 hover:bg-green-300 cursor-pointer" %}
+            {% elif count < 3 %}
+                {% set classes = "bg-orange-200 hover:bg-orange-300 cursor-pointer" %}
+            {% else %}
+                {% set classes = "bg-red-200 text-gray-500 cursor-not-allowed" %}
+            {% endif %}
+            <div class="border rounded-lg p-3 text-center {{ classes }}"
+                 onclick="selectSlot('{{ slot }}', {{ count }})">
+                {{ slot }}{% if count > 0 %} - {{ count }}/3 booked{% endif %}
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Booking Form -->
+    <div id="bookingForm" class="hidden border p-4 rounded-lg">
+        <h3 class="text-center mb-2 text-[#0067a5]">
+            Confirm Booking for <span id="selectedSlot"></span>
+        </h3>
+        <form method="POST" action="/book">
+            <input type="hidden" name="cart_id" value="{{ cart_id }}">
+            <input type="hidden" name="date_str" value="{{ date }}">
+            <input type="hidden" name="time_slot" id="timeSlotInput">
+
+            <label class="block mb-1">Select Your Name:</label>
+            <select id="nameSelect" name="name_id" required>
+                <option value="">-- Type to search --</option>
+                {% for name in names %}
+                    <option value="{{ name.id }}">{{ name.full_name }}</option>
+                {% endfor %}
+            </select>
+
+            <button type="submit"
+                    class="mt-3 w-full bg-[#0067a5] text-white px-4 py-2 rounded-lg hover:opacity-90">
+                Submit Booking
+            </button>
+        </form>
+    </div>
+
+    <!-- Back Button -->
+    <div class="flex justify-center mt-4">
+        <a href="/calendar/{{ cart_id }}"
+           class="bg-[#0067a5] text-white px-4 py-2 rounded-lg shadow hover:opacity-90">
+           Back to Calendar
+        </a>
+    </div>
+
+</div>
+
+<!-- Tom Select Script -->
+<link href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+
+<script>
+function selectSlot(slot, count) {
+    if (count >= 3) {
+        alert("This slot is already full. Please pick another one.");
+        return;
+    }
+
+    const form = document.getElementById("bookingForm");
+    form.classList.remove("hidden");
+    document.getElementById("selectedSlot").textContent = slot;
+    document.getElementById("timeSlotInput").value = slot;
+
+    form.scrollIntoView({ behavior: "smooth" });
+}
+
+// Drastic Tom Select configuration
+new TomSelect("#nameSelect", {
+    maxItems: 1,
+    create: false,
+    placeholder: "Type to search...",
+    searchField: "text",
+    preload: false,           // do not preload
+    dropdownParent: "body",   // prevent overlap
+    hideSelected: true,
+    onInitialize: function() {
+        // Remove all initial options from dropdown
+        this.clearOptions();
+
+        // Store static options internally
+        this.allOptions = {% raw %}[{% endraw %}
+            {% for name in names %}
+                {value: "{{ name.id }}", text: "{{ name.full_name }}"}{% if not loop.last %},{% endif %}
+            {% endfor %}
+        {% raw %}] {% endraw %};
+    },
+    load: function(query, callback) {
+        if (!query.length) return callback(); // show nothing if empty
+        const results = this.allOptions.filter(opt =>
+            opt.text.toLowerCase().includes(query.toLowerCase())
+        );
+        callback(results);
+    }
+});
+
+</script>
+
+<style>
+/* Prevent dropdown overlapping the Submit button */
+.ts-dropdown {
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 9999;
+}
+</style>
+
+{% endblock %}
+
+
+
